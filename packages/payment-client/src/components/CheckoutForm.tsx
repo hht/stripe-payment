@@ -38,7 +38,6 @@ export const CheckoutForm: FC<{}> = () => {
         message.success("Payment Successful");
         useStripeStore.setState({
           clientSecret: undefined,
-          paymentIntentId: undefined,
         });
       },
       onError: (e) => message.error(e.message),
@@ -49,14 +48,12 @@ export const CheckoutForm: FC<{}> = () => {
     return null;
   }
 
-  console.log(clientSecret);
   return (
     <Modal
       visible={!!clientSecret}
       onCancel={() => {
         useStripeStore.setState({
           clientSecret: undefined,
-          paymentIntentId: undefined,
         });
       }}
       okButtonProps={{

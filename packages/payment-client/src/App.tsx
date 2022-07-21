@@ -1,4 +1,4 @@
-import { Layout, Skeleton } from "antd";
+import { Layout, message, Skeleton } from "antd";
 import { StripeForm } from "components/CheckoutForm";
 import { Header } from "components/Header";
 import { Product } from "components/Product";
@@ -12,7 +12,6 @@ export const App: FC = () => {
   const { isAuthenticated, loginWithPopup } = useAuth();
   const { run } = useRequest<{
     clientSecret: string;
-    paymentIntentId: string;
   }>(
     (item: Price) =>
       request("create-payment-intent", "POST", {
@@ -22,10 +21,10 @@ export const App: FC = () => {
       }),
     {
       manual: true,
-      onSuccess: ({ clientSecret, paymentIntentId }) => {
-        useStripeStore.setState({ clientSecret, paymentIntentId });
+      onSuccess: ({ clientSecret }) => {
+        useStripeStore.setState({ clientSecret });
       },
-      onError: console.log,
+      onError: (e) => message.error(e.message),
     }
   );
   return (

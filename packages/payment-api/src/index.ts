@@ -62,7 +62,6 @@ app.post(
         },
       });
       res.send({
-        paymentIntentId: session.id,
         clientSecret: session.client_secret,
       });
     } catch (error: any) {
@@ -89,17 +88,10 @@ app.post(
       res.status(400).send(`Webhook Error: ${err.message}`);
       return;
     }
-
-    switch (event.type) {
-      case "payment_intent.succeeded":
-        const paymentIntent = event.data.object;
-        break;
-      default:
-        console.log(JSON.stringify(event));
-    }
+    console.log(JSON.stringify(event));
   }
 );
 
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
+app.listen(3001, () => {
+  console.log("Server is running on port 3001");
 });
