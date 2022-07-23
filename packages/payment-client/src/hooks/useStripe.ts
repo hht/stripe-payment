@@ -3,6 +3,7 @@ import { request, useRequest } from "./useRequest";
 
 interface StripeStore {
   clientSecret?: string;
+  product?: Price;
 }
 
 export const useStripeStore = create<StripeStore>((set) => ({}));

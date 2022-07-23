@@ -17,19 +17,32 @@ export const CheckoutForm: FC<{}> = () => {
   const clientSecret = useStripeStore((state) => state.clientSecret);
   const { loading, run } = useRequest<any>(
     async () => {
-      if (!stripe || !elements) {
+      const product = useStripeStore.getState().product;
+      if (!stripe || !elements || !product) {
         return;
       }
-
-      const { error } = await stripe?.processOrder({
-        elements,
-        confirmParams: {
-          return_url: window.location.href,
-        },
-        redirect: "if_required",
-      });
-      if (error) {
-        return Promise.reject(error);
+      if (product.type === "one_time") {
+        const { error } = await stripe?.processOrder({
+          elements,
+          confirmParams: {
+            return_url: window.location.href,
+          },
+          redirect: "if_required",
+        });
+        if (error) {
+          return Promise.reject(error);
+        }
+      } else {
+        const { error } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: window.location.href,
+          },
+          redirect: "if_required",
+        });
+        if (error) {
+          return Promise.reject(error);
+        }
       }
     },
     {

@@ -35,7 +35,7 @@ app.get("/products", (req, res) => __awaiter(void 0, void 0, void 0, function* (
     const prices = (yield stripe.prices.list({
         lookup_keys: [req.body.lookup_key],
         expand: ["data.product"],
-    })).data.filter((it) => it.type === "one_time");
+    })).data;
     res.send(prices);
 }));
 app.post("/create-payment-intent", (0, express_jwt_1.expressjwt)({
@@ -44,28 +44,58 @@ app.post("/create-payment-intent", (0, express_jwt_1.expressjwt)({
     issuer: "https://dev-w3aq7ufb.us.auth0.com/",
     algorithms: ["HS256"],
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
-    if (!((_a = req.auth) === null || _a === void 0 ? void 0 : _a.sub)) {
+    var _a;
+    if (!((_a = req.auth) === null || _a === void 0 ? void 0 : _a.sub) || !req.body.email) {
         res.status(401).send("Unauthorized");
         return;
     }
     const item = req.body.item;
     try {
-        const session = yield stripe.orders.create({
-            line_items: [
-                {
-                    price: item.id,
-                    quantity: 1,
+        if (item.type === "one_time") {
+            const session = yield stripe.orders.create({
+                line_items: [
+                    {
+                        price: item.id,
+                        quantity: 1,
+                    },
+                ],
+                currency: item.currency,
+                metadata: {
+                    user_id: req.body.email,
                 },
-            ],
-            currency: item.currency,
-            metadata: {
-                user_id: (_c = (_b = req.auth) === null || _b === void 0 ? void 0 : _b.sub) !== null && _c !== void 0 ? _c : "",
-            },
-        });
-        res.send({
-            clientSecret: session.client_secret,
-        });
+            });
+            res.send({
+                clientSecret: session.client_secret,
+            });
+        }
+        if (item.type === "recurring") {
+            let customer = (yield stripe.customers.search({ query: `email:"${req.body.email}"` })).data.find((it) => it.email === req.body.email);
+            if (!customer) {
+                customer = yield stripe.customers.create({
+                    email: req.body.email,
+                });
+            }
+            const session = yield stripe.subscriptions.create({
+                customer: customer.id,
+                items: [
+                    {
+                        price: item.id,
+                    },
+                ],
+                payment_behavior: "default_incomplete",
+                expand: ["latest_invoice.payment_intent"],
+                payment_settings: {
+                    payment_method_types: ["card"],
+                },
+                metadata: {
+                    email: req.body.email,
+                },
+            });
+            res.send({
+                // @ts-ignore
+                clientSecret: session.latest_invoice.payment_intent.client_secret,
+            });
+        }
     }
     catch (error) {
         return res.status(400).send({ error: { message: error.message } });

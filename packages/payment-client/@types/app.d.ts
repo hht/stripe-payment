@@ -5,4 +5,5 @@ interface Price {
   };
   unit_amount: number;
   currency: string;
+  type: "one_time" | "recurring";
 }

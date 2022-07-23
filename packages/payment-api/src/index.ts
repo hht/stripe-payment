@@ -30,7 +30,7 @@ app.get("/products", async (req, res) => {
       lookup_keys: [req.body.lookup_key],
       expand: ["data.product"],
     })
-  ).data.filter((it) => it.type === "one_time");
+  ).data;
   res.send(prices);
 });
 
@@ -43,27 +43,59 @@ app.post(
     algorithms: ["HS256"],
   }),
   async (req: JWTRequest, res) => {
-    if (!req.auth?.sub) {
+    if (!req.auth?.sub || !req.body.email) {
       res.status(401).send("Unauthorized");
       return;
     }
     const item = req.body.item as Stripe.Price;
     try {
-      const session = await stripe.orders.create({
-        line_items: [
-          {
-            price: item.id,
-            quantity: 1,
+      if (item.type === "one_time") {
+        const session = await stripe.orders.create({
+          line_items: [
+            {
+              price: item.id,
+              quantity: 1,
+            },
+          ],
+          currency: item.currency,
+          metadata: {
+            user_id: req.body.email,
           },
-        ],
-        currency: item.currency,
-        metadata: {
-          user_id: req.auth?.sub ?? "",
-        },
-      });
-      res.send({
-        clientSecret: session.client_secret,
-      });
+        });
+        res.send({
+          clientSecret: session.client_secret,
+        });
+      }
+      if (item.type === "recurring") {
+        let customer = (
+          await stripe.customers.search({ query: `email:"${req.body.email}"` })
+        ).data.find((it) => it.email === req.body.email);
+        if (!customer) {
+          customer = await stripe.customers.create({
+            email: req.body.email,
+          });
+        }
+        const session = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              price: item.id,
+            },
+          ],
+          payment_behavior: "default_incomplete",
+          expand: ["latest_invoice.payment_intent"],
+          payment_settings: {
+            payment_method_types: ["card"],
+          },
+          metadata: {
+            email: req.body.email,
+          },
+        });
+        res.send({
+          // @ts-ignore
+          clientSecret: session.latest_invoice.payment_intent.client_secret,
+        });
+      }
     } catch (error: any) {
       return res.status(400).send({ error: { message: error.message } });
     }

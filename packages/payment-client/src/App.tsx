@@ -9,7 +9,7 @@ import { FC } from "react";
 
 export const App: FC = () => {
   const { loading, procucts } = useProducts();
-  const { isAuthenticated, loginWithPopup } = useAuth();
+  const { isAuthenticated, loginWithPopup, user } = useAuth();
   const { run } = useRequest<{
     clientSecret: string;
   }>(
@@ -17,6 +17,7 @@ export const App: FC = () => {
       request("create-payment-intent", "POST", {
         data: {
           item,
+          email: user!.email,
         },
       }),
     {
@@ -34,19 +35,22 @@ export const App: FC = () => {
         {loading ? (
           <Skeleton />
         ) : (
-          procucts?.map((product) => (
-            <Product
-              key={product.id}
-              onPress={() => {
-                if (isAuthenticated) {
-                  run(product);
-                } else {
-                  loginWithPopup();
-                }
-              }}
-              item={product}
-            />
-          ))
+          <div style={{ display: "flex", flexDirection: "row" }}>
+            {procucts?.map((product) => (
+              <Product
+                key={product.id}
+                onPress={() => {
+                  if (isAuthenticated) {
+                    useStripeStore.setState({ product });
+                    run(product);
+                  } else {
+                    loginWithPopup();
+                  }
+                }}
+                item={product}
+              />
+            ))}{" "}
+          </div>
         )}
       </Layout.Content>
       <StripeForm />
